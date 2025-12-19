@@ -41,22 +41,20 @@ fn burn_trees(buffer: &mut [u32]) {
             // check surrounding
             let start_point = one_d_to_xy(i);
             let positions = [
-                // TODO: wrong annotaion (Y starts at the top)
-
                 // top_left
-                xy_to_one_d(Point::new(start_point.x - 1, start_point.y + 1)),
+                xy_to_one_d(Point::new(start_point.x - 1, start_point.y - 1)),
                 // top
-                xy_to_one_d(Point::new(start_point.x, start_point.y + 1)),
+                xy_to_one_d(Point::new(start_point.x, start_point.y - 1)),
                 // top_right
-                xy_to_one_d(Point::new(start_point.x + 1, start_point.y + 1)),
+                xy_to_one_d(Point::new(start_point.x + 1, start_point.y - 1)),
                 // right
                 xy_to_one_d(Point::new(start_point.x + 1, start_point.y)),
                 // down_right
-                xy_to_one_d(Point::new(start_point.x + 1, start_point.y - 1)),
+                xy_to_one_d(Point::new(start_point.x + 1, start_point.y + 1)),
                 // down
-                xy_to_one_d(Point::new(start_point.x, start_point.y - 1)),
+                xy_to_one_d(Point::new(start_point.x, start_point.y + 1)),
                 // down_left
-                xy_to_one_d(Point::new(start_point.x - 1, start_point.y - 1)),
+                xy_to_one_d(Point::new(start_point.x - 1, start_point.y + 1)),
                 // left
                 xy_to_one_d(Point::new(start_point.x - 1, start_point.y)),
             ];
