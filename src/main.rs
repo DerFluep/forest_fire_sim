@@ -41,6 +41,8 @@ fn burn_trees(buffer: &mut [u32]) {
             // check surrounding
             let start_point = one_d_to_xy(i);
             let positions = [
+                // TODO: wrong annotaion (Y starts at the top)
+            
                 // top_left
                 xy_to_one_d(Point::new(start_point.x - 1, start_point.y + 1)),
                 // top
@@ -62,6 +64,7 @@ fn burn_trees(buffer: &mut [u32]) {
             for index in positions.iter() {
                 if buffer[*index] == FIRE {
                     tmp_buffer[i] = FIRE;
+                    // TODO: break early
                 }
             }
         }
