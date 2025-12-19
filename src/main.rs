@@ -1,8 +1,8 @@
 use minifb::{Key, Window, WindowOptions};
 use rand::prelude::*;
 
-const WIDTH: usize = 500;
-const HEIGHT: usize = 500;
+const WIDTH: usize = 1000;
+const HEIGHT: usize = 1000;
 
 const TREE: u32 = 65280;
 const FIRE: u32 = 16711680;
@@ -33,19 +33,16 @@ fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
     (r << 16) | (g << 8) | b
 }
 
-// TODO: reverse this: check if FIRE, burn surroundet Trees
-// that saves alot of processing, because there is way less FIRE
-// to check against than TREEs
 fn burn_trees(buffer: &mut [u32]) {
     let mut tmp_buffer = vec![0; WIDTH * HEIGHT];
     tmp_buffer.copy_from_slice(buffer);
     for i in 0..buffer.len() {
-        if buffer[i] == TREE {
+        if buffer[i] == FIRE {
             // check surrounding
             let start_point = one_d_to_xy(i);
             let positions = [
                 // TODO: wrong annotaion (Y starts at the top)
-            
+
                 // top_left
                 xy_to_one_d(Point::new(start_point.x - 1, start_point.y + 1)),
                 // top
@@ -65,9 +62,8 @@ fn burn_trees(buffer: &mut [u32]) {
             ];
 
             for index in positions.iter() {
-                if buffer[*index] == FIRE {
-                    tmp_buffer[i] = FIRE;
-                    // TODO: break early
+                if buffer[*index] == TREE {
+                    tmp_buffer[*index] = FIRE;
                 }
             }
         }
