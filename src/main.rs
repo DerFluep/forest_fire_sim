@@ -1,8 +1,8 @@
 use minifb::{Key, Window, WindowOptions};
 use rand::prelude::*;
 
-const WIDTH: usize = 1366;
-const HEIGHT: usize = 768;
+const WIDTH: usize = 500;
+const HEIGHT: usize = 500;
 
 const TREE: u32 = 65280;
 const FIRE: u32 = 16711680;
@@ -100,7 +100,16 @@ fn main() {
         "Forest Fire Simulator",
         WIDTH,
         HEIGHT,
-        WindowOptions::default(),
+        WindowOptions {
+            borderless: (true),
+            title: (true),
+            resize: (true),
+            scale: (minifb::Scale::FitScreen),
+            scale_mode: (minifb::ScaleMode::AspectRatioStretch),
+            topmost: (true),
+            transparency: (false),
+            none: (false),
+        },
     )
     .unwrap_or_else(|e| {
         panic!("{}", e);
