@@ -1,5 +1,5 @@
 This is a forest fire simulation based on this [Veritasium video](https://www.youtube.com/watch?v=HBluLfX2F_k).
-Simply change the WIDTH and HEIGHT to your desired simulation area and run it.
+Simply change the WIDTH and HEIGHT to your desired simulation area and run it and hit SPACE to start.
 
 Green Pixel represent Trees. They spawn over time at random locations.
 A lightning hits a random pixel every few frames and starts a fire.
