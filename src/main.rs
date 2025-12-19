@@ -1,11 +1,16 @@
 use minifb::{Key, Window, WindowOptions};
 use rand::prelude::*;
 
-const WIDTH: usize = 1000;
-const HEIGHT: usize = 1000;
+const WIDTH: usize = 500;
+const HEIGHT: usize = 500;
 
 const TREE: u32 = 65280;
 const FIRE: u32 = 16711680;
+
+const TREE_SPAWN_RATE: u32 = 10;
+const LIGHTNING_SPAWN_RATE: u32 = 150;
+const SIM_SPEED: usize = 200; // that sets the target FPS of the sim
+// but it's limited by the PC speed
 
 struct Point {
     x: u32,
@@ -93,9 +98,6 @@ fn main() {
     let mut prev_buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     let mut rng = rand::rng();
 
-    let tree_spawn = (WIDTH * HEIGHT) / 5000;
-    let lightning_spawn = 6250000 / (WIDTH * HEIGHT);
-
     let mut window = Window::new(
         "Forest Fire Simulator",
         WIDTH,
@@ -115,7 +117,7 @@ fn main() {
         panic!("{}", e);
     });
 
-    window.set_target_fps(60);
+    window.set_target_fps(SIM_SPEED);
 
     let mut frame_count = 0;
     let mut run = false;
@@ -126,17 +128,17 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         if window.is_key_down(Key::Space) {
-            run = !run;
+            run = true;
         }
         if run {
-            for _ in 0..tree_spawn {
+            for _ in 0..TREE_SPAWN_RATE {
                 let spawn_point = rng.random_range(0..WIDTH * HEIGHT);
                 if buffer[spawn_point] == 0 {
                     buffer[spawn_point] = TREE;
                 }
             }
 
-            if frame_count >= lightning_spawn {
+            if frame_count >= LIGHTNING_SPAWN_RATE {
                 buffer[rng.random_range(0..WIDTH * HEIGHT)] = FIRE;
                 frame_count = 0;
             }
