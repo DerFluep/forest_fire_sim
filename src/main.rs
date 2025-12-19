@@ -33,6 +33,9 @@ fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
     (r << 16) | (g << 8) | b
 }
 
+// TODO: reverse this: check if FIRE, burn surroundet Trees
+// that saves alot of processing, because there is way less FIRE
+// to check against than TREEs
 fn burn_trees(buffer: &mut [u32]) {
     let mut tmp_buffer = vec![0; WIDTH * HEIGHT];
     tmp_buffer.copy_from_slice(buffer);
