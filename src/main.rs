@@ -4,9 +4,11 @@ use rand::prelude::*;
 const WIDTH: usize = 500;
 const HEIGHT: usize = 500;
 
+// define fixed colors
 const TREE: u32 = 65280;
 const FIRE: u32 = 16711680;
 
+// Change these to alter the simulation
 const TREE_SPAWN_RATE: u32 = 10;
 const LIGHTNING_SPAWN_RATE: u32 = 150;
 const SIM_SPEED: usize = 200; // that sets the target FPS of the sim
@@ -39,11 +41,13 @@ fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
 }
 
 fn burn_trees(buffer: &mut [u32]) {
+    // tmp_buffer is needed to not change the original buffer while checking it
+    // otherwise errors occure
     let mut tmp_buffer = vec![0; WIDTH * HEIGHT];
-    tmp_buffer.copy_from_slice(buffer);
+    tmp_buffer.copy_from_slice(buffer); // copy buffer into tmp_buffer
     for i in 0..buffer.len() {
-        if buffer[i] == FIRE {
-            // check surrounding
+        if buffer[i] == FIRE { // check if a pixel is on fire
+            // check surrounding pixel if its a tree and...
             let start_point = one_d_to_xy(i);
             let positions = [
                 // top_left
@@ -66,7 +70,7 @@ fn burn_trees(buffer: &mut [u32]) {
 
             for index in positions.iter() {
                 if buffer[*index] == TREE {
-                    tmp_buffer[*index] = FIRE;
+                    tmp_buffer[*index] = FIRE; // ...burn it
                 }
             }
         }
@@ -74,6 +78,7 @@ fn burn_trees(buffer: &mut [u32]) {
     buffer.copy_from_slice(&tmp_buffer);
 }
 
+// leave only edge fire and extinguish every other
 fn delete_fire(buffer: &mut [u32], prev_frame: &[u32]) {
     for n in 0..buffer.len() {
         if prev_frame[n] == FIRE {
@@ -82,6 +87,7 @@ fn delete_fire(buffer: &mut [u32], prev_frame: &[u32]) {
     }
 }
 
+// fill every edge pixel with "0"
 fn delete_edge(buffer: &mut [u32]) {
     for x in 0..WIDTH {
         buffer[xy_to_one_d(Point::new(x as u32, 0))] = 0;
@@ -94,7 +100,9 @@ fn delete_edge(buffer: &mut [u32]) {
 }
 
 fn main() {
+    // store the current frame
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+    // keep the previous frame
     let mut prev_buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     let mut rng = rand::rng();
 
@@ -131,6 +139,8 @@ fn main() {
             run = true;
         }
         if run {
+
+            // continuously spawn trees
             for _ in 0..TREE_SPAWN_RATE {
                 let spawn_point = rng.random_range(0..WIDTH * HEIGHT);
                 if buffer[spawn_point] == 0 {
@@ -138,17 +148,24 @@ fn main() {
                 }
             }
 
+            // every other frame spawn a lightning on rng location
             if frame_count >= LIGHTNING_SPAWN_RATE {
                 buffer[rng.random_range(0..WIDTH * HEIGHT)] = FIRE;
                 frame_count = 0;
             }
 
+            // set edge pixel to "0" so the burn_trees function doesnt check out of range pixel
+            // locations
             delete_edge(&mut buffer);
+            // spread the fire
             burn_trees(&mut buffer);
+            // clean fire so only edge fire remains
             delete_fire(&mut buffer, &prev_buffer);
 
             window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
+            // copy current buffer into prev_buffer
             prev_buffer.copy_from_slice(&buffer);
+            // increase frame_count for frame depending lightning spawn
             frame_count += 1;
         } else {
             window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
