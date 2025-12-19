@@ -46,7 +46,8 @@ fn burn_trees(buffer: &mut [u32]) {
     let mut tmp_buffer = vec![0; WIDTH * HEIGHT];
     tmp_buffer.copy_from_slice(buffer); // copy buffer into tmp_buffer
     for i in 0..buffer.len() {
-        if buffer[i] == FIRE { // check if a pixel is on fire
+        if buffer[i] == FIRE {
+            // check if a pixel is on fire
             // check surrounding pixel if its a tree and...
             let start_point = one_d_to_xy(i);
             let positions = [
@@ -139,7 +140,6 @@ fn main() {
             run = true;
         }
         if run {
-
             // continuously spawn trees
             for _ in 0..TREE_SPAWN_RATE {
                 let spawn_point = rng.random_range(0..WIDTH * HEIGHT);
@@ -150,8 +150,11 @@ fn main() {
 
             // every other frame spawn a lightning on rng location
             if frame_count >= LIGHTNING_SPAWN_RATE {
-                buffer[rng.random_range(0..WIDTH * HEIGHT)] = FIRE;
-                frame_count = 0;
+                let spawn_point = rng.random_range(0..WIDTH * HEIGHT);
+                if buffer[spawn_point] == TREE {
+                    buffer[spawn_point] = FIRE;
+                    frame_count = 0;
+                }
             }
 
             // set edge pixel to "0" so the burn_trees function doesnt check out of range pixel
