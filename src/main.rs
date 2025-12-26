@@ -9,30 +9,30 @@ const TREE: u32 = 65280;
 const FIRE: u32 = 16711680;
 
 // Change these to alter the simulation
-const TREE_SPAWN_RATE: u32 = 10;
-const LIGHTNING_SPAWN_RATE: u32 = 150;
+const TREE_SPAWN_RATE: usize = 10;
+const LIGHTNING_SPAWN_RATE: usize = 150;
 const SIM_SPEED: usize = 200; // that sets the target FPS of the sim
 // but it's limited by the PC speed
 
 struct Point {
-    x: u32,
-    y: u32,
+    x: usize,
+    y: usize,
 }
 
 impl Point {
-    fn new(x: u32, y: u32) -> Point {
+    fn new(x: usize, y: usize) -> Point {
         Point { x, y }
     }
 }
 
 fn xy_to_one_d(point: Point) -> usize {
-    point.x as usize + point.y as usize * WIDTH
+    point.x + point.y * WIDTH
 }
 
 fn one_d_to_xy(index: usize) -> Point {
     let x = index % WIDTH;
     let y = index / WIDTH;
-    Point::new(x as u32, y as u32)
+    Point::new(x, y)
 }
 
 fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
@@ -91,12 +91,12 @@ fn delete_fire(buffer: &mut [u32], prev_frame: &[u32]) {
 // fill every edge pixel with "0"
 fn delete_edge(buffer: &mut [u32]) {
     for x in 0..WIDTH {
-        buffer[xy_to_one_d(Point::new(x as u32, 0))] = 0;
-        buffer[xy_to_one_d(Point::new(x as u32, HEIGHT as u32 - 1))] = 0;
+        buffer[xy_to_one_d(Point::new(x, 0))] = 0;
+        buffer[xy_to_one_d(Point::new(x, HEIGHT - 1))] = 0;
     }
     for y in 0..HEIGHT {
-        buffer[xy_to_one_d(Point::new(0, y as u32))] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH as u32 - 1, y as u32))] = 0;
+        buffer[xy_to_one_d(Point::new(0, y))] = 0;
+        buffer[xy_to_one_d(Point::new(WIDTH - 1, y))] = 0;
     }
 }
 
@@ -131,7 +131,7 @@ fn main() {
     let mut frame_count = 0;
     let mut run = false;
 
-    for _ in 0..((HEIGHT as f32 * WIDTH as f32) * 0.1) as usize {
+    for _ in 0..((HEIGHT as f32 * WIDTH as f32) * 0.1) as u32 {
         buffer[rng.random_range(0..HEIGHT * WIDTH)] = TREE;
     }
 
