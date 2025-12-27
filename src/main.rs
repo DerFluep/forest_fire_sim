@@ -1,8 +1,14 @@
+use std::time::Duration;
+
 use minifb::{Key, Window, WindowOptions};
 use rand::prelude::*;
 
-const WIDTH: usize = 500;
-const HEIGHT: usize = 500;
+use sdl3::event::Event;
+use sdl3::keyboard::Keycode;
+use sdl3::pixels::Color;
+
+const WIDTH: u32 = 500;
+const HEIGHT: u32 = 500;
 
 // define fixed colors
 const TREE: u32 = 65280;
@@ -26,13 +32,13 @@ impl Point {
 }
 
 fn xy_to_one_d(point: Point) -> usize {
-    point.x as usize + point.y as usize * WIDTH
+    point.x as usize + point.y as usize * WIDTH as usize
 }
 
 fn one_d_to_xy(index: usize) -> Point {
-    let x = index % WIDTH;
-    let y = index / WIDTH;
-    Point::new(x as u32, y as u32)
+    let x = index as u32 % WIDTH;
+    let y = index as u32 / WIDTH;
+    Point::new(x, y)
 }
 
 fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
@@ -43,7 +49,7 @@ fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
 fn burn_trees(buffer: &mut [u32]) {
     // tmp_buffer is needed to not change the original buffer while checking it
     // otherwise errors occure
-    let mut tmp_buffer = vec![0; WIDTH * HEIGHT];
+    let mut tmp_buffer = vec![0; (WIDTH * HEIGHT) as usize];
     tmp_buffer.copy_from_slice(buffer); // copy buffer into tmp_buffer
     for i in 0..buffer.len() {
         if buffer[i] == FIRE {
@@ -102,47 +108,52 @@ fn delete_edge(buffer: &mut [u32]) {
 
 fn main() {
     // store the current frame
-    let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+    let mut buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
     // keep the previous frame
-    let mut prev_buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+    let mut prev_buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
     let mut rng = rand::rng();
 
-    let mut window = Window::new(
-        "Forest Fire Simulator",
-        WIDTH,
-        HEIGHT,
-        WindowOptions {
-            borderless: (true),
-            title: (true),
-            resize: (true),
-            scale: (minifb::Scale::FitScreen),
-            scale_mode: (minifb::ScaleMode::AspectRatioStretch),
-            topmost: (true),
-            transparency: (false),
-            none: (false),
-        },
-    )
-    .unwrap_or_else(|e| {
-        panic!("{}", e);
-    });
+    let sdl_context = sdl3::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
 
-    window.set_target_fps(SIM_SPEED);
+    let window = video_subsystem
+        .window("Forest Fire Sim", WIDTH, HEIGHT)
+        .position_centered()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas();
+    canvas.set_draw_color(Color::RGB(0, 0, 0));
+    canvas.clear();
+    canvas.present();
+    let mut event_pump = sdl_context.event_pump().unwrap();
 
     let mut frame_count = 0;
     let mut run = false;
 
     for _ in 0..((HEIGHT as f32 * WIDTH as f32) * 0.1) as usize {
-        buffer[rng.random_range(0..HEIGHT * WIDTH)] = TREE;
+        buffer[rng.random_range(0..(HEIGHT * WIDTH) as usize)] = TREE;
     }
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
-        if window.is_key_down(Key::Space) {
-            run = true;
+    'running: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Space),
+                    ..
+                } => run = true,
+                _ => {}
+            }
         }
         if run {
             // continuously spawn trees
             for _ in 0..TREE_SPAWN_RATE {
-                let spawn_point = rng.random_range(0..WIDTH * HEIGHT);
+                let spawn_point = rng.random_range(0..(WIDTH * HEIGHT) as usize);
                 if buffer[spawn_point] == 0 {
                     buffer[spawn_point] = TREE;
                 }
@@ -150,7 +161,7 @@ fn main() {
 
             // every other frame spawn a lightning on rng location
             if frame_count >= LIGHTNING_SPAWN_RATE {
-                let spawn_point = rng.random_range(0..WIDTH * HEIGHT);
+                let spawn_point = rng.random_range(0..(WIDTH * HEIGHT) as usize);
                 if buffer[spawn_point] == TREE {
                     buffer[spawn_point] = FIRE;
                     frame_count = 0;
@@ -165,13 +176,16 @@ fn main() {
             // clean fire so only edge fire remains
             delete_fire(&mut buffer, &prev_buffer);
 
-            window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
+            canvas.present();
+            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+
             // copy current buffer into prev_buffer
             prev_buffer.copy_from_slice(&buffer);
             // increase frame_count for frame depending lightning spawn
             frame_count += 1;
         } else {
-            window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
+            canvas.present();
+            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         }
     }
 }
