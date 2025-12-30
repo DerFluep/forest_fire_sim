@@ -5,8 +5,6 @@ use rand::prelude::*;
 use sdl3::event::Event;
 use sdl3::keyboard::Keycode;
 use sdl3::pixels::{Color, PixelFormat};
-use sdl3::render::Texture;
-use sdl3::surface::Surface;
 
 const WIDTH: u32 = 500;
 const HEIGHT: u32 = 500;
@@ -33,19 +31,19 @@ impl Point {
 }
 
 fn is_tree(index: usize, buffer: &[u8]) -> bool {
-    buffer[index + 1] == 255
+    buffer[index * 3 + 1] == 255
 }
 
 fn set_tree(index: usize, buffer: &mut [u8]) {
-    buffer[index + 1] = 255;
+    buffer[index * 3 + 1] = 255;
 }
 
 fn is_fire(index: usize, buffer: &[u8]) -> bool {
-    buffer[index] == 255
+    buffer[index * 3] == 255
 }
 
 fn set_fire(index: usize, buffer: &mut [u8]) {
-    buffer[index] = 255;
+    buffer[index * 3] = 255;
 }
 
 fn xy_to_one_d(point: Point) -> usize {
@@ -113,23 +111,24 @@ fn delete_fire(buffer: &mut [u8], prev_frame: &[u8]) {
     }
 }
 
+// TODO: fix indicec (the wrong black bars can be seen after pressing space)
 // fill every edge pixel with "0"
 fn delete_edge(buffer: &mut [u8]) {
     for x in 0..WIDTH {
-        buffer[xy_to_one_d(Point::new(x, 0))] = 0;
-        buffer[xy_to_one_d(Point::new(x, 0)) + 1] = 0;
-        buffer[xy_to_one_d(Point::new(x, 0)) + 2] = 0;
-        buffer[xy_to_one_d(Point::new(x, HEIGHT - 1))] = 0;
-        buffer[xy_to_one_d(Point::new(x, HEIGHT - 1)) + 1] = 0;
-        buffer[xy_to_one_d(Point::new(x, HEIGHT - 1)) + 2] = 0;
+        buffer[xy_to_one_d(Point::new(x * 3, 0))] = 0;
+        buffer[xy_to_one_d(Point::new(x * 3, 0)) + 1] = 0;
+        buffer[xy_to_one_d(Point::new(x * 3, 0)) + 2] = 0;
+        buffer[xy_to_one_d(Point::new(x * 3, HEIGHT - 1))] = 0;
+        buffer[xy_to_one_d(Point::new(x * 3, HEIGHT - 1)) + 1] = 0;
+        buffer[xy_to_one_d(Point::new(x * 3, HEIGHT - 1)) + 2] = 0;
     }
     for y in 0..HEIGHT {
         buffer[xy_to_one_d(Point::new(0, y))] = 0;
         buffer[xy_to_one_d(Point::new(0, y)) + 1] = 0;
         buffer[xy_to_one_d(Point::new(0, y)) + 2] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH - 1, y))] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH - 1, y)) + 1] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH - 1, y)) + 2] = 0;
+        buffer[xy_to_one_d(Point::new(WIDTH * 3 - 1, y))] = 0;
+        buffer[xy_to_one_d(Point::new(WIDTH * 3 - 1, y)) + 1] = 0;
+        buffer[xy_to_one_d(Point::new(WIDTH * 3 - 1, y)) + 2] = 0;
     }
 }
 
@@ -156,8 +155,11 @@ fn main() {
     canvas.present();
 
     let texture_creator = canvas.texture_creator();
-    let surface = Surface::new(WIDTH, HEIGHT, PixelFormat::RGB24).unwrap();
-    let mut texture = Texture::from_surface(&surface, &texture_creator).unwrap();
+    let mut texture = texture_creator
+        .create_texture_streaming(PixelFormat::RGB24, WIDTH, HEIGHT)
+        .unwrap();
+    // let surface = Surface::new(WIDTH, HEIGHT, PixelFormat::RGB24).unwrap();
+    // let mut texture = Texture::from_surface(&surface, &texture_creator).unwrap();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -219,6 +221,7 @@ fn main() {
             // increase frame_count for frame depending lightning spawn
             frame_count += 1;
         } else {
+            // TODO: somewhere here needs to be a .lock() or something, doesnt seem to be quite right
             texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
             canvas.copy(&texture, None, None).unwrap();
             canvas.present();
