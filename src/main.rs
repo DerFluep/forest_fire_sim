@@ -4,7 +4,9 @@ use rand::prelude::*;
 
 use sdl3::event::Event;
 use sdl3::keyboard::Keycode;
-use sdl3::pixels::Color;
+use sdl3::pixels::{Color, PixelFormat};
+use sdl3::render::Texture;
+use sdl3::surface::Surface;
 
 const WIDTH: u32 = 500;
 const HEIGHT: u32 = 500;
@@ -152,6 +154,11 @@ fn main() {
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
     canvas.present();
+
+    let texture_creator = canvas.texture_creator();
+    let surface = Surface::new(WIDTH, HEIGHT, PixelFormat::RGB24).unwrap();
+    let mut texture = Texture::from_surface(&surface, &texture_creator).unwrap();
+
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     let mut frame_count = 0;
@@ -202,6 +209,8 @@ fn main() {
             // clean fire so only edge fire remains
             delete_fire(&mut buffer, &prev_buffer);
 
+            texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
+            canvas.copy(&texture, None, None).unwrap();
             canvas.present();
             ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
 
@@ -210,6 +219,8 @@ fn main() {
             // increase frame_count for frame depending lightning spawn
             frame_count += 1;
         } else {
+            texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
+            canvas.copy(&texture, None, None).unwrap();
             canvas.present();
             ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         }
