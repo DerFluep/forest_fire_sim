@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use minifb::{Key, Window, WindowOptions};
 use rand::prelude::*;
 
 use sdl3::event::Event;
@@ -31,13 +30,29 @@ impl Point {
     }
 }
 
+fn is_tree(index: usize, buffer: &[u8]) -> bool {
+    buffer[index + 1] == 255
+}
+
+fn set_tree(index: usize, buffer: &mut [u8]) {
+    buffer[index + 1] = 255;
+}
+
+fn is_fire(index: usize, buffer: &[u8]) -> bool {
+    buffer[index] == 255
+}
+
+fn set_fire(index: usize, buffer: &mut [u8]) {
+    buffer[index] = 255;
+}
+
 fn xy_to_one_d(point: Point) -> usize {
     point.x as usize + point.y as usize * WIDTH as usize
 }
 
 fn one_d_to_xy(index: usize) -> Point {
-    let x = index as u32 % WIDTH;
-    let y = index as u32 / WIDTH;
+    let x = index as u32 % WIDTH * 3;
+    let y = index as u32 / WIDTH * 3;
     Point::new(x, y)
 }
 
@@ -46,13 +61,13 @@ fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
     (r << 16) | (g << 8) | b
 }
 
-fn burn_trees(buffer: &mut [u32]) {
+fn burn_trees(buffer: &mut [u8]) {
     // tmp_buffer is needed to not change the original buffer while checking it
     // otherwise errors occure
-    let mut tmp_buffer = vec![0; (WIDTH * HEIGHT) as usize];
+    let mut tmp_buffer = vec![0; (WIDTH * HEIGHT) as usize * 3];
     tmp_buffer.copy_from_slice(buffer); // copy buffer into tmp_buffer
-    for i in 0..buffer.len() {
-        if buffer[i] == FIRE {
+    for i in 0..buffer.len() / 3 {
+        if is_fire(i, buffer) {
             // check if a pixel is on fire
             // check surrounding pixel if its a tree and...
             let start_point = one_d_to_xy(i);
@@ -76,8 +91,8 @@ fn burn_trees(buffer: &mut [u32]) {
             ];
 
             for index in positions.iter() {
-                if buffer[*index] == TREE {
-                    tmp_buffer[*index] = FIRE; // ...burn it
+                if is_tree(*index, buffer) {
+                    set_fire(*index, &mut tmp_buffer); // ...burn it
                 }
             }
         }
@@ -86,31 +101,41 @@ fn burn_trees(buffer: &mut [u32]) {
 }
 
 // leave only edge fire and extinguish every other
-fn delete_fire(buffer: &mut [u32], prev_frame: &[u32]) {
-    for n in 0..buffer.len() {
-        if prev_frame[n] == FIRE {
+fn delete_fire(buffer: &mut [u8], prev_frame: &[u8]) {
+    for n in 0..buffer.len() / 3 {
+        if is_fire(n, prev_frame) {
             buffer[n] = 0;
+            buffer[n + 1] = 0;
+            buffer[n + 2] = 0;
         }
     }
 }
 
 // fill every edge pixel with "0"
-fn delete_edge(buffer: &mut [u32]) {
+fn delete_edge(buffer: &mut [u8]) {
     for x in 0..WIDTH {
-        buffer[xy_to_one_d(Point::new(x as u32, 0))] = 0;
-        buffer[xy_to_one_d(Point::new(x as u32, HEIGHT as u32 - 1))] = 0;
+        buffer[xy_to_one_d(Point::new(x, 0))] = 0;
+        buffer[xy_to_one_d(Point::new(x, 0)) + 1] = 0;
+        buffer[xy_to_one_d(Point::new(x, 0)) + 2] = 0;
+        buffer[xy_to_one_d(Point::new(x, HEIGHT - 1))] = 0;
+        buffer[xy_to_one_d(Point::new(x, HEIGHT - 1)) + 1] = 0;
+        buffer[xy_to_one_d(Point::new(x, HEIGHT - 1)) + 2] = 0;
     }
     for y in 0..HEIGHT {
-        buffer[xy_to_one_d(Point::new(0, y as u32))] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH as u32 - 1, y as u32))] = 0;
+        buffer[xy_to_one_d(Point::new(0, y))] = 0;
+        buffer[xy_to_one_d(Point::new(0, y)) + 1] = 0;
+        buffer[xy_to_one_d(Point::new(0, y)) + 2] = 0;
+        buffer[xy_to_one_d(Point::new(WIDTH - 1, y))] = 0;
+        buffer[xy_to_one_d(Point::new(WIDTH - 1, y)) + 1] = 0;
+        buffer[xy_to_one_d(Point::new(WIDTH - 1, y)) + 2] = 0;
     }
 }
 
 fn main() {
     // store the current frame
-    let mut buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
+    let mut buffer: Vec<u8> = vec![0; (WIDTH * HEIGHT * 3) as usize];
     // keep the previous frame
-    let mut prev_buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
+    let mut prev_buffer: Vec<u8> = vec![0; (WIDTH * HEIGHT * 3) as usize];
     let mut rng = rand::rng();
 
     let sdl_context = sdl3::init().unwrap();
@@ -123,6 +148,7 @@ fn main() {
         .unwrap();
 
     let mut canvas = window.into_canvas();
+
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
     canvas.present();
@@ -132,7 +158,7 @@ fn main() {
     let mut run = false;
 
     for _ in 0..((HEIGHT as f32 * WIDTH as f32) * 0.1) as usize {
-        buffer[rng.random_range(0..(HEIGHT * WIDTH) as usize)] = TREE;
+        set_tree(rng.random_range(0..(HEIGHT * WIDTH) as usize), &mut buffer);
     }
 
     'running: loop {
@@ -155,15 +181,15 @@ fn main() {
             for _ in 0..TREE_SPAWN_RATE {
                 let spawn_point = rng.random_range(0..(WIDTH * HEIGHT) as usize);
                 if buffer[spawn_point] == 0 {
-                    buffer[spawn_point] = TREE;
+                    set_tree(spawn_point, &mut buffer);
                 }
             }
 
             // every other frame spawn a lightning on rng location
             if frame_count >= LIGHTNING_SPAWN_RATE {
                 let spawn_point = rng.random_range(0..(WIDTH * HEIGHT) as usize);
-                if buffer[spawn_point] == TREE {
-                    buffer[spawn_point] = FIRE;
+                if is_tree(spawn_point, &buffer) {
+                    set_fire(spawn_point, &mut buffer);
                     frame_count = 0;
                 }
             }
