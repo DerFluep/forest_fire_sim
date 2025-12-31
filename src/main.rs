@@ -8,15 +8,12 @@ use sdl3::pixels::{Color, PixelFormat};
 
 const WIDTH: u32 = 500;
 const HEIGHT: u32 = 500;
-
-// define fixed colors
-const TREE: u32 = 65280;
-const FIRE: u32 = 16711680;
+const PIXEL_COUNT: usize = (WIDTH * HEIGHT) as usize;
 
 // Change these to alter the simulation
 const TREE_SPAWN_RATE: u32 = 10;
 const LIGHTNING_SPAWN_RATE: u32 = 150;
-const SIM_SPEED: usize = 200; // that sets the target FPS of the sim
+const SIM_SPEED: u32 = 200; // that sets the target FPS of the sim
 // but it's limited by the PC speed
 
 struct Point {
@@ -31,28 +28,42 @@ impl Point {
 }
 
 fn is_tree(index: usize, buffer: &[u8]) -> bool {
-    buffer[index * 3 + 1] == 255
+    buffer[index] == 0 && buffer[index + 1] == 255 && buffer[index + 2] == 0
 }
 
 fn set_tree(index: usize, buffer: &mut [u8]) {
-    buffer[index * 3 + 1] = 255;
+    buffer[index] = 0;
+    buffer[index + 1] = 255;
+    buffer[index + 2] = 0;
 }
 
 fn is_fire(index: usize, buffer: &[u8]) -> bool {
-    buffer[index * 3] == 255
+    buffer[index] == 255 && buffer[index + 1] == 0 && buffer[index + 2] == 0
 }
 
 fn set_fire(index: usize, buffer: &mut [u8]) {
-    buffer[index * 3] = 255;
+    buffer[index] = 255;
+    buffer[index + 1] = 0;
+    buffer[index + 2] = 0;
+}
+
+fn is_empty(index: usize, buffer: &[u8]) -> bool {
+    buffer[index] == 0 && buffer[index + 1] == 0 && buffer[index + 2] == 0
+}
+
+fn clear_pixel(index: usize, buffer: &mut [u8]) {
+    buffer[index] = 0;
+    buffer[index + 1] = 0;
+    buffer[index + 2] = 0;
 }
 
 fn xy_to_one_d(point: Point) -> usize {
-    point.x as usize + point.y as usize * WIDTH as usize
+    point.x as usize + point.y as usize * WIDTH as usize * 3
 }
 
 fn one_d_to_xy(index: usize) -> Point {
-    let x = index as u32 % WIDTH * 3;
-    let y = index as u32 / WIDTH * 3;
+    let x = index as u32 % (WIDTH * 3);
+    let y = index as u32 / (WIDTH * 3);
     Point::new(x, y)
 }
 
@@ -66,28 +77,28 @@ fn burn_trees(buffer: &mut [u8]) {
     // otherwise errors occure
     let mut tmp_buffer = vec![0; (WIDTH * HEIGHT) as usize * 3];
     tmp_buffer.copy_from_slice(buffer); // copy buffer into tmp_buffer
-    for i in 0..buffer.len() / 3 {
-        if is_fire(i, buffer) {
+    for i in 0..PIXEL_COUNT {
+        if is_fire(i * 3, buffer) {
             // check if a pixel is on fire
             // check surrounding pixel if its a tree and...
-            let start_point = one_d_to_xy(i);
+            let start_point = one_d_to_xy(i * 3);
             let positions = [
                 // top_left
-                xy_to_one_d(Point::new(start_point.x - 1, start_point.y - 1)),
+                xy_to_one_d(Point::new(start_point.x - 3, start_point.y - 1)),
                 // top
                 xy_to_one_d(Point::new(start_point.x, start_point.y - 1)),
                 // top_right
-                xy_to_one_d(Point::new(start_point.x + 1, start_point.y - 1)),
+                xy_to_one_d(Point::new(start_point.x + 3, start_point.y - 1)),
                 // right
-                xy_to_one_d(Point::new(start_point.x + 1, start_point.y)),
+                xy_to_one_d(Point::new(start_point.x + 3, start_point.y)),
                 // down_right
-                xy_to_one_d(Point::new(start_point.x + 1, start_point.y + 1)),
+                xy_to_one_d(Point::new(start_point.x + 3, start_point.y + 1)),
                 // down
                 xy_to_one_d(Point::new(start_point.x, start_point.y + 1)),
                 // down_left
-                xy_to_one_d(Point::new(start_point.x - 1, start_point.y + 1)),
+                xy_to_one_d(Point::new(start_point.x - 3, start_point.y + 1)),
                 // left
-                xy_to_one_d(Point::new(start_point.x - 1, start_point.y)),
+                xy_to_one_d(Point::new(start_point.x - 3, start_point.y)),
             ];
 
             for index in positions.iter() {
@@ -102,41 +113,30 @@ fn burn_trees(buffer: &mut [u8]) {
 
 // leave only edge fire and extinguish every other
 fn delete_fire(buffer: &mut [u8], prev_frame: &[u8]) {
-    for n in 0..buffer.len() / 3 {
-        if is_fire(n, prev_frame) {
-            buffer[n] = 0;
-            buffer[n + 1] = 0;
-            buffer[n + 2] = 0;
+    for n in 0..PIXEL_COUNT {
+        if is_fire(n * 3, prev_frame) {
+            clear_pixel(n * 3, buffer);
         }
     }
 }
 
-// TODO: fix indicec (the wrong black bars can be seen after pressing space)
 // fill every edge pixel with "0"
 fn delete_edge(buffer: &mut [u8]) {
     for x in 0..WIDTH {
-        buffer[xy_to_one_d(Point::new(x * 3, 0))] = 0;
-        buffer[xy_to_one_d(Point::new(x * 3, 0)) + 1] = 0;
-        buffer[xy_to_one_d(Point::new(x * 3, 0)) + 2] = 0;
-        buffer[xy_to_one_d(Point::new(x * 3, HEIGHT - 1))] = 0;
-        buffer[xy_to_one_d(Point::new(x * 3, HEIGHT - 1)) + 1] = 0;
-        buffer[xy_to_one_d(Point::new(x * 3, HEIGHT - 1)) + 2] = 0;
+        clear_pixel(xy_to_one_d(Point::new(x * 3, 0)), buffer);
+        clear_pixel(xy_to_one_d(Point::new(x * 3, HEIGHT - 1)), buffer);
     }
     for y in 0..HEIGHT {
-        buffer[xy_to_one_d(Point::new(0, y))] = 0;
-        buffer[xy_to_one_d(Point::new(0, y)) + 1] = 0;
-        buffer[xy_to_one_d(Point::new(0, y)) + 2] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH * 3 - 1, y))] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH * 3 - 1, y)) + 1] = 0;
-        buffer[xy_to_one_d(Point::new(WIDTH * 3 - 1, y)) + 2] = 0;
+        clear_pixel(xy_to_one_d(Point::new(0, y)), buffer);
+        clear_pixel(xy_to_one_d(Point::new((WIDTH - 1) * 3, y)), buffer);
     }
 }
 
 fn main() {
     // store the current frame
-    let mut buffer: Vec<u8> = vec![0; (WIDTH * HEIGHT * 3) as usize];
+    let mut buffer: Vec<u8> = vec![0; PIXEL_COUNT * 3];
     // keep the previous frame
-    let mut prev_buffer: Vec<u8> = vec![0; (WIDTH * HEIGHT * 3) as usize];
+    let mut prev_buffer: Vec<u8> = vec![0; PIXEL_COUNT * 3];
     let mut rng = rand::rng();
 
     let sdl_context = sdl3::init().unwrap();
@@ -166,9 +166,14 @@ fn main() {
     let mut frame_count = 0;
     let mut run = false;
 
+    // for i in 0..PIXEL_COUNT {
+    //     set_tree(i * 3, &mut buffer);
+    // }
+
     for _ in 0..((HEIGHT as f32 * WIDTH as f32) * 0.1) as usize {
-        set_tree(rng.random_range(0..(HEIGHT * WIDTH) as usize), &mut buffer);
+        set_tree(rng.random_range(0..PIXEL_COUNT) * 3, &mut buffer);
     }
+    delete_edge(&mut buffer);
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -188,15 +193,15 @@ fn main() {
         if run {
             // continuously spawn trees
             for _ in 0..TREE_SPAWN_RATE {
-                let spawn_point = rng.random_range(0..(WIDTH * HEIGHT) as usize);
-                if buffer[spawn_point] == 0 {
+                let spawn_point = rng.random_range(0..PIXEL_COUNT) * 3;
+                if is_empty(spawn_point, &buffer) {
                     set_tree(spawn_point, &mut buffer);
                 }
             }
 
             // every other frame spawn a lightning on rng location
             if frame_count >= LIGHTNING_SPAWN_RATE {
-                let spawn_point = rng.random_range(0..(WIDTH * HEIGHT) as usize);
+                let spawn_point = rng.random_range(0..PIXEL_COUNT) * 3;
                 if is_tree(spawn_point, &buffer) {
                     set_fire(spawn_point, &mut buffer);
                     frame_count = 0;
@@ -214,18 +219,17 @@ fn main() {
             texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
             canvas.copy(&texture, None, None).unwrap();
             canvas.present();
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / SIM_SPEED));
 
             // copy current buffer into prev_buffer
             prev_buffer.copy_from_slice(&buffer);
             // increase frame_count for frame depending lightning spawn
             frame_count += 1;
         } else {
-            // TODO: somewhere here needs to be a .lock() or something, doesnt seem to be quite right
             texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
             canvas.copy(&texture, None, None).unwrap();
             canvas.present();
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / SIM_SPEED));
         }
     }
 }
