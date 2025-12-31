@@ -67,11 +67,6 @@ fn one_d_to_xy(index: usize) -> Point {
     Point::new(x, y)
 }
 
-fn _from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
-    let (r, g, b) = (r as u32, g as u32, b as u32);
-    (r << 16) | (g << 8) | b
-}
-
 fn burn_trees(buffer: &mut [u8]) {
     // tmp_buffer is needed to not change the original buffer while checking it
     // otherwise errors occure
@@ -112,7 +107,7 @@ fn burn_trees(buffer: &mut [u8]) {
 }
 
 // leave only edge fire and extinguish every other
-fn delete_fire(buffer: &mut [u8], prev_frame: &[u8]) {
+fn clear_fire(buffer: &mut [u8], prev_frame: &[u8]) {
     for n in 0..PIXEL_COUNT {
         if is_fire(n * 3, prev_frame) {
             clear_pixel(n * 3, buffer);
@@ -120,8 +115,8 @@ fn delete_fire(buffer: &mut [u8], prev_frame: &[u8]) {
     }
 }
 
-// fill every edge pixel with "0"
-fn delete_edge(buffer: &mut [u8]) {
+// fill every edge pixel with black
+fn clear_edges(buffer: &mut [u8]) {
     for x in 0..WIDTH {
         clear_pixel(xy_to_one_d(Point::new(x * 3, 0)), buffer);
         clear_pixel(xy_to_one_d(Point::new(x * 3, HEIGHT - 1)), buffer);
@@ -158,22 +153,16 @@ fn main() {
     let mut texture = texture_creator
         .create_texture_streaming(PixelFormat::RGB24, WIDTH, HEIGHT)
         .unwrap();
-    // let surface = Surface::new(WIDTH, HEIGHT, PixelFormat::RGB24).unwrap();
-    // let mut texture = Texture::from_surface(&surface, &texture_creator).unwrap();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     let mut frame_count = 0;
     let mut run = false;
 
-    // for i in 0..PIXEL_COUNT {
-    //     set_tree(i * 3, &mut buffer);
-    // }
-
     for _ in 0..((HEIGHT as f32 * WIDTH as f32) * 0.1) as usize {
         set_tree(rng.random_range(0..PIXEL_COUNT) * 3, &mut buffer);
     }
-    delete_edge(&mut buffer);
+    clear_edges(&mut buffer);
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -208,13 +197,12 @@ fn main() {
                 }
             }
 
-            // set edge pixel to "0" so the burn_trees function doesnt check out of range pixel
-            // locations
-            delete_edge(&mut buffer);
+            // clears edge pixel so the burn_trees function doesnt check out of range pixel locations
+            clear_edges(&mut buffer);
             // spread the fire
             burn_trees(&mut buffer);
             // clean fire so only edge fire remains
-            delete_fire(&mut buffer, &prev_buffer);
+            clear_fire(&mut buffer, &prev_buffer);
 
             texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
             canvas.copy(&texture, None, None).unwrap();
