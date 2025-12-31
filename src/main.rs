@@ -4,7 +4,7 @@ use rand::prelude::*;
 
 use sdl3::event::Event;
 use sdl3::keyboard::Keycode;
-use sdl3::pixels::{Color, PixelFormat};
+use sdl3::pixels::PixelFormat;
 
 const WIDTH: u32 = 500;
 const HEIGHT: u32 = 500;
@@ -144,10 +144,6 @@ fn main() {
         .unwrap();
 
     let mut canvas = window.into_canvas();
-
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
-    canvas.clear();
-    canvas.present();
 
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
