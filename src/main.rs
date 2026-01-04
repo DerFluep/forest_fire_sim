@@ -7,25 +7,16 @@ use sdl3::keyboard::Keycode;
 use sdl3::pixels::PixelFormat;
 
 const WIDTH: u32 = 500;
+const WIDTH_SUBPIXEL: usize = WIDTH as usize * 3;
 const HEIGHT: u32 = 500;
 const PIXEL_COUNT: usize = (WIDTH * HEIGHT) as usize;
+const BUFFER_SIZE: usize = PIXEL_COUNT * 3;
 
 // Change these to alter the simulation
 const TREE_SPAWN_RATE: u32 = 10;
 const LIGHTNING_SPAWN_RATE: u32 = 150;
 const SIM_SPEED: u32 = 200; // that sets the target FPS of the sim
 // but it's limited by the PC speed
-
-struct Point {
-    x: u32,
-    y: u32,
-}
-
-impl Point {
-    fn new(x: u32, y: u32) -> Point {
-        Point { x, y }
-    }
-}
 
 fn is_tree(index: usize, buffer: &[u8]) -> bool {
     buffer[index] == 0 && buffer[index + 1] == 255 && buffer[index + 2] == 0
@@ -57,43 +48,33 @@ fn clear_pixel(index: usize, buffer: &mut [u8]) {
     buffer[index + 2] = 0;
 }
 
-fn xy_to_one_d(point: Point) -> usize {
-    point.x as usize + point.y as usize * WIDTH as usize * 3
-}
-
-fn one_d_to_xy(index: usize) -> Point {
-    let x = index as u32 % (WIDTH * 3);
-    let y = index as u32 / (WIDTH * 3);
-    Point::new(x, y)
-}
-
 fn burn_trees(buffer: &mut [u8]) {
     // tmp_buffer is needed to not change the original buffer while checking it
     // otherwise errors occure
-    let mut tmp_buffer = vec![0; (WIDTH * HEIGHT) as usize * 3];
+    let mut tmp_buffer = vec![0; BUFFER_SIZE];
     tmp_buffer.copy_from_slice(buffer); // copy buffer into tmp_buffer
     for i in 0..PIXEL_COUNT {
         if is_fire(i * 3, buffer) {
             // check if a pixel is on fire
             // check surrounding pixel if its a tree and...
-            let start_point = one_d_to_xy(i * 3);
+            let index = i * 3;
             let positions = [
                 // top_left
-                xy_to_one_d(Point::new(start_point.x - 3, start_point.y - 1)),
+                index - WIDTH_SUBPIXEL - 3,
                 // top
-                xy_to_one_d(Point::new(start_point.x, start_point.y - 1)),
+                index - WIDTH_SUBPIXEL,
                 // top_right
-                xy_to_one_d(Point::new(start_point.x + 3, start_point.y - 1)),
+                index - WIDTH_SUBPIXEL + 3,
                 // right
-                xy_to_one_d(Point::new(start_point.x + 3, start_point.y)),
+                index + 3,
                 // down_right
-                xy_to_one_d(Point::new(start_point.x + 3, start_point.y + 1)),
+                index + WIDTH_SUBPIXEL + 3,
                 // down
-                xy_to_one_d(Point::new(start_point.x, start_point.y + 1)),
+                index + WIDTH_SUBPIXEL,
                 // down_left
-                xy_to_one_d(Point::new(start_point.x - 3, start_point.y + 1)),
+                index + WIDTH_SUBPIXEL - 3,
                 // left
-                xy_to_one_d(Point::new(start_point.x - 3, start_point.y)),
+                index - 3,
             ];
 
             for index in positions.iter() {
@@ -117,21 +98,30 @@ fn clear_fire(buffer: &mut [u8], prev_frame: &[u8]) {
 
 // fill every edge pixel with black
 fn clear_edges(buffer: &mut [u8]) {
-    for x in 0..WIDTH {
-        clear_pixel(xy_to_one_d(Point::new(x * 3, 0)), buffer);
-        clear_pixel(xy_to_one_d(Point::new(x * 3, HEIGHT - 1)), buffer);
+    for x in 0..WIDTH_SUBPIXEL {
+        // Top row
+        buffer[x] = 0;
+        // Down row
+        buffer[WIDTH_SUBPIXEL * (HEIGHT as usize - 1) + x] = 0;
     }
-    for y in 0..HEIGHT {
-        clear_pixel(xy_to_one_d(Point::new(0, y)), buffer);
-        clear_pixel(xy_to_one_d(Point::new((WIDTH - 1) * 3, y)), buffer);
+    for y in 0..HEIGHT as usize {
+        // Left column
+        let index = WIDTH_SUBPIXEL * y;
+        buffer[index] = 0;
+        buffer[index + 1] = 0;
+        buffer[index + 2] = 0;
+        // Right column
+        buffer[index + WIDTH_SUBPIXEL - 3] = 0;
+        buffer[index + WIDTH_SUBPIXEL - 2] = 0;
+        buffer[index + WIDTH_SUBPIXEL - 1] = 0;
     }
 }
 
 fn main() {
     // store the current frame
-    let mut buffer: Vec<u8> = vec![0; PIXEL_COUNT * 3];
+    let mut buffer: Vec<u8> = vec![0; BUFFER_SIZE];
     // keep the previous frame
-    let mut prev_buffer: Vec<u8> = vec![0; PIXEL_COUNT * 3];
+    let mut prev_buffer: Vec<u8> = vec![0; BUFFER_SIZE];
     let mut rng = rand::rng();
 
     let sdl_context = sdl3::init().unwrap();
@@ -155,7 +145,7 @@ fn main() {
     let mut frame_count = 0;
     let mut run = false;
 
-    for _ in 0..((HEIGHT as f32 * WIDTH as f32) * 0.1) as usize {
+    for _ in 0..(PIXEL_COUNT as f32 * 0.5).round() as usize {
         set_tree(rng.random_range(0..PIXEL_COUNT) * 3, &mut buffer);
     }
     clear_edges(&mut buffer);
@@ -200,20 +190,20 @@ fn main() {
             // clean fire so only edge fire remains
             clear_fire(&mut buffer, &prev_buffer);
 
-            texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
+            texture.update(None, &buffer, WIDTH_SUBPIXEL).unwrap();
             canvas.copy(&texture, None, None).unwrap();
             canvas.present();
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / SIM_SPEED));
+            // ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / SIM_SPEED));
 
             // copy current buffer into prev_buffer
             prev_buffer.copy_from_slice(&buffer);
             // increase frame_count for frame depending lightning spawn
             frame_count += 1;
         } else {
-            texture.update(None, &buffer, WIDTH as usize * 3).unwrap();
+            texture.update(None, &buffer, WIDTH_SUBPIXEL).unwrap();
             canvas.copy(&texture, None, None).unwrap();
             canvas.present();
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / SIM_SPEED));
+            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         }
     }
 }
