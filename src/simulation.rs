@@ -131,9 +131,12 @@ impl Simulation {
                 }
                 // continuously spawn trees
                 for _ in 0..TREE_SPAWN_RATE {
-                    let spawn_point = rng.random_range(0..PIXEL_COUNT) * 3;
-                    if simulation.is_empty(spawn_point) {
-                        simulation.set_tree(spawn_point);
+                    loop {
+                        let spawn_point = rng.random_range(0..PIXEL_COUNT) * 3;
+                        if simulation.is_empty(spawn_point) {
+                            simulation.set_tree(spawn_point);
+                            break;
+                        }
                     }
                 }
                 // every other frame spawn a lightning on rng location
