@@ -142,11 +142,14 @@ impl Simulation {
                 // every other frame spawn a lightning on rng location
                 let buffer = simulation.buffer.lock().unwrap();
                 if frame_count >= LIGHTNING_SPAWN_RATE {
-                    let spawn_point = rng.random_range(0..PIXEL_COUNT) * 3;
-                    if is_tree(spawn_point, &buffer) {
-                        fire_buf.push(spawn_point);
-                        // set_fire(spawn_point, &mut buffer);
-                        frame_count = 0;
+                    loop {
+                        let spawn_point = rng.random_range(0..PIXEL_COUNT) * 3;
+                        if is_tree(spawn_point, &buffer) {
+                            fire_buf.push(spawn_point);
+                            // set_fire(spawn_point, &mut buffer);
+                            frame_count = 0;
+                            break;
+                        }
                     }
                 }
                 drop(buffer);
